@@ -1,0 +1,803 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0f1e;color:#e2e8f0;font-family:'Sora',sans-serif}
+.app{min-height:600px;display:flex;flex-direction:column;background:#0a0f1e;border-radius:12px;overflow:hidden}
+.slide{flex:1;padding:32px 36px 20px;display:flex;flex-direction:column;gap:16px;animation:fadeIn .35s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-top:1px solid #1f2d44;background:#0d1425}
+.nav-btn{background:transparent;border:1px solid #1f2d44;color:#94a3b8;padding:6px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;transition:all .2s}
+.nav-btn:hover:not(:disabled){border-color:#22d3ee;color:#22d3ee}
+.nav-btn:disabled{opacity:.3;cursor:default}
+.nav-dots{display:flex;gap:6px;flex-wrap:wrap;max-width:200px;justify-content:center}
+.dot{width:7px;height:7px;border-radius:50%;background:#1f2d44;transition:background .2s;cursor:pointer}
+.dot.active{background:#22d3ee}
+.tag{display:inline-block;padding:3px 10px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:6px;font-size:13px;font-weight:600;border:1px solid}
+h1{font-size:28px;font-weight:700;line-height:1.2}
+h2{font-size:20px;font-weight:600}
+h3{font-size:15px;font-weight:600}
+.mono{font-family:'JetBrains Mono',monospace}
+.muted{color:#64748b}
+.card{background:#111827;border:1px solid #1f2d44;border-radius:10px;padding:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.active-link{stroke-dasharray:8 4;animation:dashAnim 1s linear infinite}
+@keyframes dashAnim{to{stroke-dashoffset:-24}}
+.scen-btn{background:#111827;border:1px solid #1f2d44;color:#94a3b8;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;transition:all .2s;text-align:left}
+.scen-btn:hover{border-color:#22d3ee;color:#22d3ee}
+.scen-btn.active{border-color:#22d3ee;color:#22d3ee;background:#0c1f30}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-family:'JetBrains Mono',monospace}
+.ref-link{color:#22d3ee;text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:10px;word-break:break-all}
+.ref-link:hover{text-decoration:underline}
+.member-card{background:#111827;border:1px solid #1f2d44;border-radius:12px;padding:20px 18px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;flex-shrink:0}
+.topic-tag{display:inline-block;padding:3px 9px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;border:1px solid}
+.step-btn{background:#111827;border:1px solid #1f2d44;color:#94a3b8;padding:6px 16px;border-radius:7px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;transition:all .2s}
+.step-btn:hover:not(:disabled){border-color:#22d3ee;color:#22d3ee}
+.step-btn:disabled{opacity:.3;cursor:default}
+.dijk-table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:12px}
+.dijk-table th{padding:5px 8px;text-align:center;color:#64748b;font-weight:600;border-bottom:1px solid #1f2d44}
+.dijk-table td{padding:5px 8px;text-align:center;border-bottom:1px solid #0d1425;transition:all .3s}
+</style>
+
+<div class="app" id="app">
+<div class="slide" id="slide-content"></div>
+<div class="nav">
+  <button class="nav-btn" id="prev-btn" onclick="prevSlide()">&#8592; Prev</button>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div class="nav-dots" id="dots"></div>
+    <span class="muted mono" style="font-size:11px" id="slide-label"></span>
+  </div>
+  <button class="nav-btn" id="next-btn" onclick="nextSlide()">Next &#8594;</button>
+</div>
+</div>
+
+<script>
+const COLORS={bg:'#0a0f1e',surface:'#111827',surf2:'#1a2332',border:'#1f2d44',cyan:'#22d3ee',purple:'#a78bfa',yellow:'#fbbf24',green:'#34d399',text:'#e2e8f0',muted:'#64748b'};
+const ROUTERS={A:{x:80,y:80,area:1},D:{x:280,y:80,area:0},F:{x:500,y:80,area:2},B:{x:80,y:230,area:1},C:{x:200,y:230,area:1},E:{x:340,y:230,area:0},G:{x:460,y:230,area:2},H:{x:580,y:230,area:2}};
+const LINKS=[{id:'AB',from:'A',to:'B',cost:20},{id:'AC',from:'A',to:'C',cost:20},{id:'AD',from:'A',to:'D',cost:5},{id:'BC',from:'B',to:'C',cost:20},{id:'CE',from:'C',to:'E',cost:5},{id:'DE',from:'D',to:'E',cost:5},{id:'DF',from:'D',to:'F',cost:5},{id:'EG',from:'E',to:'G',cost:5},{id:'FG',from:'F',to:'G',cost:10},{id:'FH',from:'F',to:'H',cost:10},{id:'GH',from:'G',to:'H',cost:10}];
+const AREACOLOR={0:COLORS.yellow,1:COLORS.cyan,2:COLORS.purple};
+const SCENARIOS=[
+  {id:'noArea_AC',label:'No Area - A to C',path:['A','D','E','C'],cost:15,desc:'No areas set, so OSPF picks the cheapest route: A-D-E-C (cost 5+5+5 = 15)',color:'#22d3ee'},
+  {id:'area_AC',  label:'With Areas - A to C',path:['A','C'],cost:20,desc:'A and C are in the same area, so OSPF stays local: A-C (cost 20)',color:'#a78bfa'},
+  {id:'noArea_BH',label:'No Area - B to H',path:['B','C','E','G','H'],cost:40,desc:'No areas set, so OSPF freely picks the shortest path: B-C-E-G-H (cost 40)',color:'#22d3ee'},
+  {id:'area_BH',  label:'With Areas - B to H',path:['B','A','D','F','H'],cost:40,desc:'B is in Area 1, H is in Area 2, so traffic must go through the backbone: B-A-D-F-H (cost 40)',color:'#a78bfa'},
+];
+
+const DK_NODES={S:{x:70,y:140},A:{x:210,y:60},B:{x:210,y:220},C:{x:350,y:220},T:{x:490,y:140}};
+const DK_EDGES=[
+  {id:'SA',from:'S',to:'A',cost:4},{id:'SB',from:'S',to:'B',cost:2},
+  {id:'AB',from:'A',to:'B',cost:1},{id:'AT',from:'A',to:'T',cost:10},
+  {id:'BC',from:'B',to:'C',cost:3},{id:'CT',from:'C',to:'T',cost:1},
+];
+const INF='inf';
+const DIJK_STEPS=[
+  {title:'Step 0 - Initialize',
+   desc:'Start by setting the distance to S as 0. Everything else is unknown, so we mark it infinity. Put S in the queue. Nothing has been visited yet.',
+   dist:{S:0,A:INF,B:INF,C:INF,T:INF},prev:{S:null,A:null,B:null,C:null,T:null},
+   visited:[],current:null,examining:[],pq:'S(0)'},
+  {title:'Step 1 - Visit S (cost 0)',
+   desc:'S has the smallest distance in the queue, so we visit it. Check neighbors: going to A costs 0+4=4, going to B costs 0+2=2. We update both.',
+   dist:{S:0,A:4,B:2,C:INF,T:INF},prev:{S:null,A:'S',B:'S',C:null,T:null},
+   visited:['S'],current:'S',examining:['SA','SB'],pq:'B(2), A(4)'},
+  {title:'Step 2 - Visit B (cost 2)',
+   desc:'B is cheapest now (cost 2), so we visit it. Going through B to A costs 2+1=3, which beats the old 4 - we update A. B to C costs 2+3=5 - we update C too.',
+   dist:{S:0,A:3,B:2,C:5,T:INF},prev:{S:null,A:'B',B:'S',C:'B',T:null},
+   visited:['S','B'],current:'B',examining:['AB','BC'],pq:'A(3), C(5)'},
+  {title:'Step 3 - Visit A (cost 3)',
+   desc:'A is cheapest now (cost 3), so we visit it. Going through A to T costs 3+10=13, so we write that down. B is already done so we skip it.',
+   dist:{S:0,A:3,B:2,C:5,T:13},prev:{S:null,A:'B',B:'S',C:'B',T:'A'},
+   visited:['S','B','A'],current:'A',examining:['AT'],pq:'C(5), T(13)'},
+  {title:'Step 4 - Visit C (cost 5)',
+   desc:'C is cheapest now (cost 5), so we visit it. Going through C to T costs 5+1=6, which beats the old 13 - better path found!',
+   dist:{S:0,A:3,B:2,C:5,T:6},prev:{S:null,A:'B',B:'S',C:'B',T:'C'},
+   visited:['S','B','A','C'],current:'C',examining:['CT'],pq:'T(6)'},
+  {title:'Step 5 - Visit T (cost 6) - Done!',
+   desc:'We reached T with total cost 6. To find the path, work backwards using prev[]: T came from C, C came from B, B came from S. Path: S -> B -> C -> T (cost 2+3+1=6).',
+   dist:{S:0,A:3,B:2,C:5,T:6},prev:{S:null,A:'B',B:'S',C:'B',T:'C'},
+   visited:['S','B','A','C','T'],current:'T',examining:[],pq:'empty',
+   finalPath:['S','B','C','T']},
+];
+
+let currentSlide=0,showAreas=false,activeScenario=null,dijkStep=0;
+const totalSlides=14;
+const slideTitles=['Introduction','Motivation','Graph Theory & Routers',"Dijkstra's Algorithm",'How OSPF Works','Network Topology','Reading OSPF Areas','Simulation Setup','Results - No Area','Results - With Areas','Conclusion','Future Work','References','Group Contributions'];
+
+function linkId(a,b){return[a,b].sort().join('');}
+function pathLinks(path){const s=new Set();for(let i=0;i<path.length-1;i++)s.add(linkId(path[i],path[i+1]));return s;}
+
+function buildSVG(scenario,showA){
+  const activeLinks=scenario?pathLinks(scenario.path):new Set();
+  const activeNodes=new Set(scenario?scenario.path:[]);
+  const pathColor=scenario?scenario.color:COLORS.cyan;
+  let svg=`<svg viewBox="0 0 660 320" style="width:100%;max-height:280px"><defs><style>.active-link{stroke-dasharray:8 4;animation:dashAnim 1s linear infinite}@keyframes dashAnim{to{stroke-dashoffset:-24}}</style></defs>`;
+  if(showA){
+    svg+=`<rect x="40" y="44" width="210" height="215" rx="14" fill="${COLORS.cyan}" fill-opacity=".07" stroke="${COLORS.cyan}" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="52" y="62" fill="${COLORS.cyan}" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="600">Area 1 (0.0.0.1)</text>
+    <rect x="244" y="44" width="140" height="215" rx="14" fill="${COLORS.yellow}" fill-opacity=".07" stroke="${COLORS.yellow}" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="256" y="62" fill="${COLORS.yellow}" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="600">Area 0 (backbone)</text>
+    <rect x="436" y="44" width="200" height="215" rx="14" fill="${COLORS.purple}" fill-opacity=".07" stroke="${COLORS.purple}" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="448" y="62" fill="${COLORS.purple}" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="600">Area 2 (0.0.0.2)</text>`;
+  }
+  LINKS.forEach(link=>{
+    const f=ROUTERS[link.from],t=ROUTERS[link.to];
+    const isA=activeLinks.has(link.id);
+    const mx=(f.x+t.x)/2,my=(f.y+t.y)/2-7;
+    svg+=`<line x1="${f.x}" y1="${f.y}" x2="${t.x}" y2="${t.y}" stroke="${isA?pathColor:COLORS.border}" stroke-width="${isA?3:1.5}" ${isA?'class="active-link"':''}/>`;
+    svg+=`<text x="${mx}" y="${my}" text-anchor="middle" fill="${isA?pathColor:COLORS.muted}" font-size="10" font-family="'JetBrains Mono',monospace" font-weight="${isA?'600':'400'}">${link.cost}</text>`;
+  });
+  Object.entries(ROUTERS).forEach(([name,r])=>{
+    const isA=activeNodes.has(name);
+    const ac=AREACOLOR[r.area];
+    const fill=isA?pathColor:COLORS.surf2;
+    const stroke=showA?ac:(isA?pathColor:COLORS.border);
+    const textFill=isA?'#0a0f1e':COLORS.text;
+    svg+=`<circle cx="${r.x}" cy="${r.y}" r="22" fill="${fill}" stroke="${stroke}" stroke-width="${isA?3:1.5}"/>
+    <text x="${r.x}" y="${r.y+1}" text-anchor="middle" dominant-baseline="central" fill="${textFill}" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">${name}</text>`;
+    if(isA&&scenario){svg+=`<circle cx="${r.x}" cy="${r.y}" r="28" fill="none" stroke="${pathColor}" stroke-width="1" stroke-opacity=".4" stroke-dasharray="3 3"/>`;}
+  });
+  return svg+'</svg>';
+}
+
+function buildDijkstraSVG(step){
+  const examining=new Set(step.examining);
+  const visitedSet=new Set(step.visited);
+  const finalPath=step.finalPath?new Set(step.finalPath.reduce((acc,n,i,arr)=>{if(i<arr.length-1)acc.push([n,arr[i+1]].sort().join(''));return acc;},[])):(new Set());
+  let svg=`<svg viewBox="0 0 580 300" style="width:100%;max-height:230px"><defs><style>.dk-anim{stroke-dasharray:8 4;animation:dashAnim 1s linear infinite}@keyframes dashAnim{to{stroke-dashoffset:-24}}</style></defs>`;
+  DK_EDGES.forEach(edge=>{
+    const f=DK_NODES[edge.from],t=DK_NODES[edge.to];
+    const isEx=examining.has(edge.id),isFin=finalPath.has(edge.id);
+    const mx=(f.x+t.x)/2,my=(f.y+t.y)/2-8;
+    let stroke=COLORS.border,sw=1.5,cls='';
+    if(isFin){stroke=COLORS.green;sw=3;cls='dk-anim';}
+    else if(isEx){stroke=COLORS.yellow;sw=2.5;cls='dk-anim';}
+    svg+=`<line x1="${f.x}" y1="${f.y}" x2="${t.x}" y2="${t.y}" stroke="${stroke}" stroke-width="${sw}" ${cls?`class="${cls}"`:''}/>`;
+    svg+=`<text x="${mx}" y="${my}" text-anchor="middle" fill="${isEx||isFin?COLORS.yellow:COLORS.muted}" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="${isEx||isFin?'700':'400'}">${edge.cost}</text>`;
+  });
+  Object.entries(DK_NODES).forEach(([name,pos])=>{
+    const isCur=step.current===name,isVis=visitedSet.has(name),isFN=step.finalPath&&step.finalPath.includes(name);
+    let fill=COLORS.surf2,stroke=COLORS.border,sw=1.5,tf=COLORS.text;
+    if(isFN){fill=COLORS.green;stroke=COLORS.green;tf='#0a0f1e';}
+    else if(isCur){fill=COLORS.yellow;stroke=COLORS.yellow;tf='#0a0f1e';}
+    else if(isVis){fill=COLORS.cyan+'33';stroke=COLORS.cyan;sw=2;}
+    svg+=`<circle cx="${pos.x}" cy="${pos.y}" r="24" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    svg+=`<text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="central" fill="${tf}" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">${name}</text>`;
+    const d=step.dist[name],dc=isFN?COLORS.green:(isCur?COLORS.yellow:(isVis?COLORS.cyan:COLORS.muted));
+    svg+=`<text x="${pos.x}" y="${pos.y-32}" text-anchor="middle" fill="${dc}" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="600">${d===INF?'inf':d}</text>`;
+  });
+  svg+=`<text x="10" y="285" fill="${COLORS.muted}" font-size="10" font-family="'JetBrains Mono',monospace">yellow = current  cyan ring = visited  yellow edge = checking  green = final path  number above = dist[]</text>`;
+  return svg+'</svg>';
+}
+
+// Slide 0: Introduction
+function slide0(){return`
+<div style="display:flex;flex-direction:column;gap:12px;justify-content:center;flex:1">
+  <div><span class="tag" style="background:#0c1f30;color:${COLORS.cyan};border:1px solid ${COLORS.cyan}33">OSPF - RFC 2328</span></div>
+  <h1 style="font-size:32px;background:linear-gradient(135deg,#22d3ee,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Simulation of OSPF<br>Routing Protocol</h1>
+  <p style="color:#94a3b8;font-size:15px;max-width:520px">OSPF (Open Shortest Path First) is a routing protocol that helps routers on a network figure out the best path to send data. This simulation, built in OPNET Modeler, tests two setups: one with no area groupings and one with areas defined.</p>
+  <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+    <span class="chip" style="background:#1a0d2e;color:${COLORS.purple};border-color:${COLORS.purple}44">Link-State Algorithm</span>
+    <span class="chip" style="background:#1a1400;color:${COLORS.yellow};border-color:${COLORS.yellow}44">2 Scenarios</span>
+  </div>
+  <div style="margin-top:12px;padding:12px 16px;background:#111827;border-left:3px solid ${COLORS.cyan};border-radius:0 8px 8px 0">
+    <p class="mono" style="font-size:12px;color:#64748b">Cost = 1,000,000 / Link Bandwidth (kbps) - lower cost = faster link = preferred path</p>
+  </div>
+</div>`;}
+
+// Slide 1: Motivation
+function slideMotivation(){return`
+<div style="display:flex;flex-direction:column;gap:14px;flex:1">
+  <div>
+    <span class="tag" style="background:#0c2218;color:${COLORS.green};border:1px solid ${COLORS.green}33;margin-bottom:8px;display:inline-block">Why This Study?</span>
+    <h2 style="color:${COLORS.cyan}">Motivation</h2>
+  </div>
+  <div class="grid2" style="flex:1">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${[
+        ['Routers Run Everything','Every time you load a page, stream a video, or send a message, routers all over the network have to figure out how to move your data. OSPF is one of the most widely used protocols doing this job - inside company networks, campuses, and ISP backbones.',COLORS.cyan,'#0c1f30'],
+        ['Big Networks Have a Problem','As networks get bigger, there is a catch. Every router sharing updates with every other router wastes a ton of bandwidth just keeping everyone in sync. Without some kind of structure, those update messages flood the whole network.',COLORS.purple,'#12072a'],
+        ['Our Question','If you split routers into separate groups called areas, does that change which paths get picked? And does it cost more? We ran the same network two different ways to find out.',COLORS.yellow,'#1a1400'],
+      ].map(([t,d,c,bg])=>`<div style="padding:12px 14px;background:${bg};border-radius:8px;border:1px solid ${c}22">
+        <p style="font-weight:600;font-size:13px;color:${c};margin-bottom:4px">${t}</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.65">${d}</p>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card" style="flex:1">
+        <p style="font-size:12px;font-weight:600;color:${COLORS.yellow};margin-bottom:10px">What We Set Out to Do</p>
+        ${[
+          ['Model','Build the network as a graph, then run Dijkstra\'s by hand to check which paths OSPF should pick.'],
+          ['Simulate','Run the same 8-router network in OPNET Modeler under two setups: no areas vs. three areas.'],
+          ['Compare','See how area boundaries push traffic through the backbone and whether that changes the cost.'],
+          ['Evaluate','Figure out the trade-offs. When do areas help? When do they hurt?'],
+        ].map(([label,desc])=>`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1f2d44">
+          <span class="mono" style="font-size:11px;color:${COLORS.cyan};flex-shrink:0;padding-top:1px">[${label}]</span>
+          <p style="font-size:12px;color:#64748b;line-height:1.6">${desc}</p>
+        </div>`).join('')}
+      </div>
+      <div style="padding:10px 14px;background:#0c1f30;border-radius:8px;border:1px solid ${COLORS.cyan}33">
+        <p style="font-size:12px;color:#94a3b8;line-height:1.6"><span class="mono" style="color:${COLORS.cyan}">Context:</span> We did this for our Math 3134: Combinatorics class at Virginia Tech (Spring 2025). The goal was to use graph theory and simulation to study how OSPF behaves under two different setups.</p>
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+// Slide 2: Graph Theory & Routers
+function slideGraphTheory(){
+  const miniSVG=`<svg viewBox="0 0 380 200" style="width:100%;max-height:185px">
+    <line x1="80" y1="100" x2="200" y2="50" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="80" y1="100" x2="200" y2="150" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="200" y1="50" x2="320" y2="100" stroke="#22d3ee" stroke-width="2.5" stroke-dasharray="6 3"/>
+    <line x1="200" y1="150" x2="320" y2="100" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="200" y1="50" x2="200" y2="150" stroke="#1f2d44" stroke-width="1.5"/>
+    <text x="130" y="64" text-anchor="middle" fill="#64748b" font-size="10" font-family="'JetBrains Mono',monospace">w=10</text>
+    <text x="130" y="138" text-anchor="middle" fill="#64748b" font-size="10" font-family="'JetBrains Mono',monospace">w=5</text>
+    <text x="265" y="60" text-anchor="middle" fill="#22d3ee" font-size="10" font-family="'JetBrains Mono',monospace" font-weight="700">w=3 best</text>
+    <text x="265" y="145" text-anchor="middle" fill="#64748b" font-size="10" font-family="'JetBrains Mono',monospace">w=8</text>
+    <text x="208" y="102" text-anchor="middle" fill="#64748b" font-size="10" font-family="'JetBrains Mono',monospace">w=7</text>
+    <circle cx="80" cy="100" r="22" fill="#1a2332" stroke="#a78bfa" stroke-width="2"/>
+    <text x="80" y="101" text-anchor="middle" dominant-baseline="central" fill="#a78bfa" font-size="12" font-weight="700" font-family="'JetBrains Mono',monospace">R1</text>
+    <circle cx="200" cy="50" r="22" fill="#1a2332" stroke="#64748b" stroke-width="1.5"/>
+    <text x="200" y="51" text-anchor="middle" dominant-baseline="central" fill="#e2e8f0" font-size="12" font-weight="700" font-family="'JetBrains Mono',monospace">R2</text>
+    <circle cx="200" cy="150" r="22" fill="#1a2332" stroke="#64748b" stroke-width="1.5"/>
+    <text x="200" y="151" text-anchor="middle" dominant-baseline="central" fill="#e2e8f0" font-size="12" font-weight="700" font-family="'JetBrains Mono',monospace">R3</text>
+    <circle cx="320" cy="100" r="22" fill="#1a2332" stroke="#a78bfa" stroke-width="2"/>
+    <text x="320" y="101" text-anchor="middle" dominant-baseline="central" fill="#a78bfa" font-size="12" font-weight="700" font-family="'JetBrains Mono',monospace">R4</text>
+    <text x="80" y="130" text-anchor="middle" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">source</text>
+    <text x="320" y="130" text-anchor="middle" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">dest</text>
+    <text x="190" y="192" text-anchor="middle" fill="#22d3ee" font-size="10" font-family="'JetBrains Mono',monospace">Best path: R1 to R2 to R4 (cost 10+3=13)</text>
+  </svg>`;
+  return`
+<div style="display:flex;flex-direction:column;gap:12px;flex:1">
+  <div>
+    <span class="tag" style="background:#12072a;color:${COLORS.purple};border:1px solid ${COLORS.purple}33;margin-bottom:6px;display:inline-block">Background</span>
+    <h2>Graph Theory &amp; Network Modeling</h2>
+  </div>
+  <div class="grid2" style="flex:1;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.purple};margin-bottom:8px">What is a Graph?</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.7">A graph is written as <span class="mono" style="color:${COLORS.cyan}">G = (V, E)</span>. It has two parts:</p>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+          ${[
+            [`V - Vertices`,`Each vertex is a <b style="color:${COLORS.cyan}">router</b>. Our network has V = {A, B, C, D, E, F, G, H} which is 8 routers total.`],
+            [`E - Edges`,`Each edge is a <b style="color:${COLORS.cyan}">link between two routers</b> - basically a cable. We have 11 of them.`],
+            [`w(e) - Cost`,`Each edge has a weight based on link speed: <span class="mono" style="color:${COLORS.yellow}">cost = 10^6 / BW (kbps)</span>. Faster = lower cost. Common values below.`],
+          ].map(([t,d])=>`<div style="padding:8px 10px;background:#0a0f1e;border-radius:6px;border-left:2px solid ${COLORS.purple}44">
+            <p style="font-size:11px;font-weight:700;color:${COLORS.purple};margin-bottom:3px">${t}</p>
+            <p style="font-size:11px;color:#64748b;line-height:1.6">${d}</p>
+          </div>`).join('')}
+          <div style="padding:8px 10px;background:#0a0f1e;border-radius:6px;border-left:2px solid ${COLORS.yellow}44">
+            <p style="font-size:11px;font-weight:700;color:${COLORS.yellow};margin-bottom:5px">Bandwidth values and their OSPF costs</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+              ${[['10 Mbps','10,000 kbps','100'],['100 Mbps','100,000 kbps','10'],['1 Gbps','1,000,000 kbps','1'],['10 Gbps','10,000,000 kbps','&lt;1 (rounds to 1)'],['T1 (1.544 Mbps)','1,544 kbps','64'],['56 kbps modem','56 kbps','17,857']].map(([label,bw,cost])=>`
+              <div style="padding:4px 6px;background:#111827;border-radius:4px;text-align:center">
+                <p style="font-size:10px;color:#94a3b8;font-weight:600">${label}</p>
+                <p style="font-size:9px;color:#4b6180">${bw}</p>
+                <p style="font-size:11px;color:${COLORS.yellow};font-weight:700;font-family:'JetBrains Mono',monospace">cost = ${cost}</p>
+              </div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:12px">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.yellow};margin-bottom:6px">Router to Graph Mapping</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          ${[['Router','Vertex','#a78bfa'],['Network link','Edge','#a78bfa'],['Bandwidth','Where cost comes from','#fbbf24'],['Path cost','Sum of edge weights','#fbbf24'],['Routing table','Shortest-path tree','#34d399'],['OSPF goal','Minimize total cost','#34d399']].map(([real,graph,c])=>`
+          <div style="font-size:11px;padding:4px 6px;background:#0a0f1e;border-radius:4px;display:flex;gap:6px;align-items:center">
+            <span style="color:#64748b">${real}</span>
+            <span style="color:${COLORS.border}">-></span>
+            <span style="color:${c};font-weight:600">${graph}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card" style="padding:12px">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.cyan};margin-bottom:6px">Scenario to Model</p>
+        <p style="font-size:11px;color:#64748b;line-height:1.65;margin-bottom:8px"><b style="color:#94a3b8">The scenario:</b> Three office buildings are connected. Building 1 connects to Building 2 over a 100 Mbps fiber link and to Building 3 over a slow 10 Mbps line. Building 2 also connects to Building 3 over a 1 Gbps backbone.</p>
+        <p style="font-size:11px;color:#64748b;margin-bottom:6px"><b style="color:#94a3b8">The model:</b></p>
+        <svg viewBox="0 0 380 170" style="width:100%;max-height:155px">
+          <line x1="80" y1="85" x2="200" y2="40" stroke="#1f2d44" stroke-width="1.5"/>
+          <line x1="80" y1="85" x2="200" y2="130" stroke="#1f2d44" stroke-width="1.5"/>
+          <line x1="200" y1="40" x2="310" y2="85" stroke="#22d3ee" stroke-width="2.5"/>
+          <line x1="200" y1="130" x2="310" y2="85" stroke="#1f2d44" stroke-width="1.5"/>
+          <text x="128" y="52" text-anchor="middle" fill="#64748b" font-size="10" font-family="'JetBrains Mono',monospace">cost=10</text>
+          <text x="128" y="122" text-anchor="middle" fill="#64748b" font-size="10" font-family="'JetBrains Mono',monospace">cost=100</text>
+          <text x="262" y="52" text-anchor="middle" fill="#22d3ee" font-size="10" font-family="'JetBrains Mono',monospace" font-weight="700">cost=1 best</text>
+          <text x="262" y="122" text-anchor="middle" fill="#64748b" font-size="10" font-family="'JetBrains Mono',monospace">cost=10</text>
+          <circle cx="80" cy="85" r="24" fill="#1a2332" stroke="#a78bfa" stroke-width="2"/>
+          <text x="80" y="82" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">Bldg</text>
+          <text x="80" y="93" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">1</text>
+          <circle cx="200" cy="40" r="24" fill="#1a2332" stroke="#64748b" stroke-width="1.5"/>
+          <text x="200" y="37" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">Bldg</text>
+          <text x="200" y="48" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">2</text>
+          <circle cx="200" cy="130" r="24" fill="#1a2332" stroke="#64748b" stroke-width="1.5"/>
+          <text x="200" y="127" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">Bldg</text>
+          <text x="200" y="138" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">3</text>
+          <circle cx="310" cy="85" r="24" fill="#1a2332" stroke="#a78bfa" stroke-width="2"/>
+          <text x="310" y="82" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">Data</text>
+          <text x="310" y="93" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="700" font-family="'JetBrains Mono',monospace">Ctr</text>
+          <text x="190" y="162" text-anchor="middle" fill="#22d3ee" font-size="10" font-family="'JetBrains Mono',monospace">Best path: Bldg1 - Bldg2 - DataCtr (cost 10+1=11)</text>
+        </svg>
+        <p style="font-size:11px;color:#4b6180;margin-top:4px;line-height:1.6">Each building becomes a vertex. Each cable becomes an edge. The bandwidth of the cable determines the edge weight. OSPF picks the path through Bldg 2 because the 1 Gbps backbone gives cost 1 on that leg.</p>
+      </div>
+      <div style="padding:12px 14px;background:#0c1f30;border-radius:8px;border:1px solid ${COLORS.cyan}33">
+        <p style="font-size:12px;font-weight:600;color:${COLORS.cyan};margin-bottom:4px">Why Undirected?</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.65">OSPF treats connections as two-way. If router A can reach router B, then B can reach A for the same cost. That keeps the graph symmetric and makes Dijkstra's easier to run.</p>
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+// Slide 3: Dijkstra's Algorithm
+function slideDijkstra(){
+  const step=DIJK_STEPS[dijkStep];
+  const isFirst=dijkStep===0,isLast=dijkStep===DIJK_STEPS.length-1;
+  const nodes=['S','A','B','C','T'];
+  return`
+<div style="display:flex;flex-direction:column;gap:10px;flex:1">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div>
+      <span class="tag" style="background:#1a1400;color:${COLORS.yellow};border:1px solid ${COLORS.yellow}33;margin-bottom:4px;display:inline-block">Interactive</span>
+      <h2>Dijkstra's Shortest Path Algorithm</h2>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <button class="step-btn" onclick="stepDijkstra(-1)" ${isFirst?'disabled':''}>&#8592; Back</button>
+      <span class="mono" style="font-size:12px;color:#64748b">${dijkStep+1} / ${DIJK_STEPS.length}</span>
+      <button class="step-btn" onclick="stepDijkstra(1)" ${isLast?'disabled':''}>Next &#8594;</button>
+      <button class="step-btn" onclick="resetDijkstra()">Reset</button>
+    </div>
+  </div>
+  <div class="grid2" style="flex:1;gap:12px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card" style="padding:10px">${buildDijkstraSVG(step)}</div>
+      <div style="padding:10px 14px;background:#1a1400;border-radius:8px;border:1px solid ${COLORS.yellow}33">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.yellow};margin-bottom:4px">${step.title}</p>
+        <p style="font-size:12px;color:#94a3b8;line-height:1.65">${step.desc}</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card" style="padding:10px">
+        <p style="font-size:11px;font-weight:700;color:${COLORS.cyan};margin-bottom:8px">Distance Table - dist[]</p>
+        <table class="dijk-table">
+          <thead><tr><th>Node</th><th>dist[]</th><th>prev[]</th><th>Status</th></tr></thead>
+          <tbody>${nodes.map(n=>{
+            const isVis=step.visited.includes(n),isCur=step.current===n,isFin=step.finalPath&&step.finalPath.includes(n);
+            const d=step.dist[n],p=step.prev[n];
+            let sc=COLORS.muted,st='unvisited',rb='transparent';
+            if(isFin){sc=COLORS.green;st='on path';rb=COLORS.green+'11';}
+            else if(isCur){sc=COLORS.yellow;st='current';rb=COLORS.yellow+'11';}
+            else if(isVis){sc=COLORS.cyan;st='visited';rb=COLORS.cyan+'0a';}
+            return`<tr style="background:${rb}">
+              <td style="font-weight:700;color:${isCur?COLORS.yellow:(isFin?COLORS.green:(isVis?COLORS.cyan:COLORS.text))}">${n}</td>
+              <td style="color:${d===INF?COLORS.muted:COLORS.text};font-weight:${d===INF?'400':'700'}">${d===INF?'inf':d}</td>
+              <td style="color:${COLORS.muted}">${p||'none'}</td>
+              <td style="color:${sc};font-size:10px">${st}</td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="padding:10px">
+        <p style="font-size:11px;font-weight:700;color:${COLORS.purple};margin-bottom:6px">Priority Queue (min-heap)</p>
+        <p class="mono" style="font-size:12px;color:${step.pq==='empty'?COLORS.muted:COLORS.text}">${step.pq==='empty'?'[ empty ]':'[ '+step.pq+' ]'}</p>
+        <p style="font-size:11px;color:#4b6180;margin-top:6px">The node with the smallest distance always gets picked next.</p>
+        <div style="margin-top:8px;padding:7px 10px;background:#0a0f1e;border-radius:6px;border-left:2px solid ${COLORS.purple}44">
+          <p style="font-size:11px;color:#64748b;line-height:1.6"><b style="color:${COLORS.purple}">Notation:</b> <span class="mono" style="color:${COLORS.cyan}">S(0)</span> means node S has a current known distance of 0. In general, <span class="mono" style="color:${COLORS.cyan}">X(n)</span> means "node X with distance n." The queue always pops the entry with the smallest n first.</p>
+        </div>
+      </div>
+      <div class="card" style="padding:10px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.8;color:#4b6180;flex:1">
+        <p style="color:${COLORS.cyan};font-weight:700;margin-bottom:4px">// Pseudocode</p>
+        <p>dist[src] = 0; dist[all others] = inf</p>
+        <p>pq.push(src, 0)</p>
+        <p style="color:${COLORS.yellow}">while pq is not empty:</p>
+        <p>&nbsp;&nbsp;u = pq.pop_min()</p>
+        <p>&nbsp;&nbsp;for each neighbor v of u:</p>
+        <p>&nbsp;&nbsp;&nbsp;&nbsp;alt = dist[u] + w(u, v)</p>
+        <p>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:${COLORS.green}">if alt &lt; dist[v]:</span></p>
+        <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dist[v] = alt; prev[v] = u</p>
+        <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pq.push(v, alt)</p>
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+// Slide 4: How OSPF Works
+function slideOSPF(){return`
+<h2 style="color:${COLORS.cyan}">How OSPF Works</h2>
+<div class="grid2" style="flex:1">
+  ${[
+    ['Link-State Algorithm','Every router tells every other router what it is connected to. These messages are called Link-State Advertisements (LSAs). Once a router has the full map, it runs Dijkstra\'s on its own to figure out the cheapest path to every destination.','#22d3ee'],
+    ['Cost - How Links Are Ranked','OSPF does not just count hops. It looks at how fast the links are. Cost = 1,000,000 / bandwidth (kbps). Faster link = lower cost = gets picked first. We used 1,000,000 kbps as the reference, same as the Cisco default. This is the edge weight in our graph model.','#a78bfa'],
+    ['OSPF Areas','For big networks, routers get grouped into areas. Routers in the same area only share detailed info with each other. To reach a different area, traffic has to go through the backbone (Area 0). Routers that sit on the border between two areas are called ABRs (Area Border Routers).','#fbbf24'],
+    ['Where OSPF Fits','OSPF runs inside one organization\'s network, which is called an Autonomous System. RIP and IS-IS do the same kind of job. When routing between completely different organizations (like two separate ISPs), you use BGP instead.','#34d399'],
+  ].map(([t,d,c])=>`<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:8px;height:8px;border-radius:50%;background:${c}"></div><h3>${t}</h3></div><p style="font-size:13px;color:#94a3b8;line-height:1.6">${d}</p></div>`).join('')}
+</div>`;}
+
+// Slide 5: Network Topology
+function slideTopology(){
+  const scen=activeScenario?SCENARIOS.find(s=>s.id===activeScenario):null;
+  return`
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+  <h2>Network Topology</h2>
+  <label style="display:flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer;font-size:13px;color:#94a3b8">
+    <input type="checkbox" id="area-toggle" onchange="toggleAreas(this.checked)" ${showAreas?'checked':''} style="accent-color:${COLORS.cyan};width:14px;height:14px"> Show Areas
+  </label>
+</div>
+<div class="card" style="padding:12px">${buildSVG(scen,showAreas)}</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+  ${SCENARIOS.map(s=>`<button class="scen-btn ${activeScenario===s.id?'active':''}" onclick="setScenario('${s.id}')">${s.label}</button>`).join('')}
+  <button class="scen-btn" onclick="setScenario(null)" style="margin-left:auto">Clear</button>
+</div>
+${scen?`<div style="padding:10px 14px;background:#0c1f30;border-radius:8px;border:1px solid ${scen.color}33;display:flex;gap:16px;align-items:center">
+  <div style="width:3px;height:36px;background:${scen.color};border-radius:99px"></div>
+  <div><p style="font-size:13px;font-weight:600;color:${scen.color}">${scen.label}</p><p style="font-size:12px;color:#64748b;margin-top:2px">${scen.desc}</p></div>
+  <span class="mono" style="margin-left:auto;font-size:20px;font-weight:600;color:${scen.color}">Cost: ${scen.cost}</span>
+</div>`:'<p class="muted" style="font-size:13px;text-align:center;padding:8px">Select a scenario above to highlight the routing path</p>'}
+<p style="font-size:12px;color:#4b6180">Routers A, B, C are in Area 1. Routers D, E are in the backbone (Area 0). Routers F, G, H are in Area 2. Numbers on links are costs - lower is better.</p>`;}
+
+// Slide 6: Simulation Setup
+function slideSimSetup(){return`
+<div style="display:flex;flex-direction:column;gap:12px;flex:1">
+  <div>
+    <span class="tag" style="background:#0c2218;color:${COLORS.green};border:1px solid ${COLORS.green}33;margin-bottom:6px;display:inline-block">Behind the Scenes</span>
+    <h2>Simulation Setup &amp; Methodology</h2>
+  </div>
+  <div class="grid2" style="flex:1;gap:12px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.green};margin-bottom:8px">Tool: OPNET Modeler</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.7;margin-bottom:8px">OPNET Modeler is a program that simulates networks without needing real hardware. It runs the whole thing in software, one packet at a time. That lets you test setups that would cost a lot of money to build for real.</p>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          ${[['Sim type','Discrete-event (one packet at a time)'],['Protocol','OSPF Version 2 (RFC 2328)'],['Reference bandwidth','1,000,000 kbps (Cisco default)'],['Run length','Long enough for OSPF to settle + traffic to flow']].map(([k,v])=>`
+          <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #1f2d44">
+            <span class="mono" style="font-size:10px;color:${COLORS.green};flex-shrink:0;width:130px">${k}</span>
+            <span style="font-size:11px;color:#64748b">${v}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.cyan};margin-bottom:8px">How We Built the Network</p>
+        ${[
+          ['Place Routers','Dragged 8 router nodes (A through H) into the OPNET workspace and labeled them.'],
+          ['Connect Links','Drew 11 point-to-point links between routers. Each link got a bandwidth that matched the cost we wanted.'],
+          ['Configure OSPF','Turned OSPF on for every router interface and set the reference bandwidth to match our graph model.'],
+          ['Add Traffic','Attached traffic sources to send data between router pairs so we could measure throughput.'],
+        ].map(([t,d],i)=>`<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #1f2d44">
+          <span class="mono" style="font-size:11px;color:${COLORS.cyan};flex-shrink:0">${i+1}.</span>
+          <div><p style="font-size:11px;font-weight:600;color:#e2e8f0">${t}</p><p style="font-size:11px;color:#4b6180;margin-top:2px">${d}</p></div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.purple};margin-bottom:8px">The Two Scenarios</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="padding:10px 12px;background:#0c1f30;border-radius:7px;border:1px solid ${COLORS.cyan}33">
+            <p style="font-size:12px;font-weight:700;color:${COLORS.cyan};margin-bottom:5px">Scenario 1 - No Areas (Flat)</p>
+            <p style="font-size:12px;color:#64748b;line-height:1.65">All 8 routers are in one big area. Every router shares its link info with everyone else. Each router builds a full map of the whole network and runs Dijkstra's to find the cheapest path anywhere, no restrictions.</p>
+          </div>
+          <div style="padding:10px 12px;background:#12072a;border-radius:7px;border:1px solid ${COLORS.purple}33">
+            <p style="font-size:12px;font-weight:700;color:${COLORS.purple};margin-bottom:5px">Scenario 2 - With Areas</p>
+            <p style="font-size:12px;color:#64748b;line-height:1.65">Routers split into 3 areas: <span style="color:${COLORS.cyan}">Area 1</span> (A, B, C), <span style="color:${COLORS.yellow}">backbone Area 0</span> (D, E), and <span style="color:${COLORS.purple}">Area 2</span> (F, G, H). Updates stay within each area. Routers A and F connect the side areas to the backbone. Cross-area traffic has to pass through the backbone.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.yellow};margin-bottom:8px">What We Measured</p>
+        ${[
+          ['Routing Paths','Which routers did traffic actually go through? Checked routing tables in OPNET after convergence.'],
+          ['Path Costs','Total cost for each source-destination pair. Verified by hand using Dijkstra\'s.'],
+          ['Throughput','How many packets got delivered in each scenario.'],
+          ['Convergence','How long it took all routers to agree on stable routes after startup.'],
+        ].map(([t,d])=>`<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #1f2d44">
+          <div style="width:6px;height:6px;border-radius:50%;background:${COLORS.yellow};flex-shrink:0;margin-top:4px"></div>
+          <div><p style="font-size:11px;font-weight:600;color:#e2e8f0">${t}</p><p style="font-size:11px;color:#4b6180;margin-top:2px">${d}</p></div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+// Slide 7: Results - No Area
+function slideNoArea(){return`
+<h2>Results - No Area Scenario</h2>
+<p style="color:#94a3b8;font-size:13px">With no areas defined, every router knows the full network. OSPF just picks whichever path has the lowest total cost, no restrictions.</p>
+<div style="padding:7px 14px;background:#111827;border-radius:7px;border:1px solid #1f2d44;display:flex;gap:20px;flex-wrap:wrap;margin-bottom:2px">
+  <span style="font-size:11px;color:#64748b"><b style="color:${COLORS.cyan}">Nodes (circles)</b> = routers - each one is a device that forwards traffic</span>
+  <span style="font-size:11px;color:#64748b"><b style="color:${COLORS.cyan}">Edges (lines)</b> = links - the connections between routers, labeled with their cost</span>
+</div>
+<div class="grid2" style="flex:1">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3>Source A to Destination C</h3>
+      <span class="pill" style="background:#0c1f30;color:${COLORS.cyan}">Cost: 15</span>
+    </div>
+    <div style="padding:8px;background:#0a0f1e;border-radius:6px;margin-bottom:10px">${buildSVG(SCENARIOS[0],false)}</div>
+    <p style="font-size:12px;color:#64748b">The direct link A to C has cost 20. But going A-D-E-C only costs 5+5+5=15, so OSPF picks that. More routers, but cheaper overall.</p>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3>Source B to Destination H</h3>
+      <span class="pill" style="background:#0c1f30;color:${COLORS.cyan}">Cost: 40</span>
+    </div>
+    <div style="padding:8px;background:#0a0f1e;border-radius:6px;margin-bottom:10px">${buildSVG(SCENARIOS[2],false)}</div>
+    <p style="font-size:12px;color:#64748b">OSPF picks B-C-E-G-H with total cost 40. No area boundary stops it, so it freely cuts across the whole network.</p>
+  </div>
+</div>`;}
+
+// Slide 8: Results - With Areas
+function slideWithAreas(){return`
+<h2>Results - With Areas Scenario</h2>
+<p style="color:#94a3b8;font-size:13px">Once areas are on, routers only know the full details of their own area. To reach another area, traffic has to go through the backbone (Area 0) via an ABR.</p>
+<div style="padding:7px 14px;background:#1a1400;border-radius:7px;border:1px solid ${COLORS.yellow}33;display:flex;gap:10px;align-items:flex-start;margin-bottom:2px">
+  <span style="font-size:11px;font-weight:700;color:${COLORS.yellow};flex-shrink:0">ABR defined:</span>
+  <span style="font-size:11px;color:#64748b;line-height:1.6">An <b style="color:${COLORS.yellow}">Area Border Router (ABR)</b> is a router that belongs to two areas at once - its own area and the backbone (Area 0). It is the only way traffic can legally cross an area boundary. In our network, routers <b style="color:${COLORS.cyan}">A</b> and <b style="color:${COLORS.purple}">F</b> are the ABRs.</span>
+</div>
+<div class="grid2" style="flex:1">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3>Source A to Destination C</h3>
+      <span class="pill" style="background:#1a0d2e;color:${COLORS.purple}">Cost: 20</span>
+    </div>
+    <div style="padding:8px;background:#0a0f1e;border-radius:6px;margin-bottom:10px">${buildSVG(SCENARIOS[1],true)}</div>
+    <p style="font-size:12px;color:#64748b">A and C are both in Area 1, so traffic stays local and uses the direct link A-C at cost 20. It cannot cut through the backbone for a same-area destination.</p>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3>Source B to Destination H</h3>
+      <span class="pill" style="background:#1a0d2e;color:${COLORS.purple}">Cost: 40</span>
+    </div>
+    <div style="padding:8px;background:#0a0f1e;border-radius:6px;margin-bottom:10px">${buildSVG(SCENARIOS[3],true)}</div>
+    <p style="font-size:12px;color:#64748b">B is in Area 1 and H is in Area 2. Traffic exits Area 1 through ABR at A, crosses the backbone via D, then enters Area 2 through F to reach H. Path: B-A-D-F-H at cost 40.</p>
+  </div>
+</div>
+<div style="padding:10px 14px;background:#111827;border-radius:8px;border:1px solid #1f2d44;display:flex;gap:20px;flex-wrap:wrap">
+  ${[['Area 1','A, B, C (0.0.0.1)',COLORS.cyan],['Area 0 - Backbone','D, E (0.0.0.0)',COLORS.yellow],['Area 2','F, G, H (0.0.0.2)',COLORS.purple]].map(([a,r,c])=>`<div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:${c}"></div><span style="font-size:12px;color:#94a3b8"><b style="color:${c}">${a}</b>: ${r}</span></div>`).join('')}
+</div>`;}
+
+// Slide 9: Conclusion
+function slideConclusion(){return`
+<div style="display:flex;flex-direction:column;gap:16px;justify-content:center;flex:1">
+  <h2 style="color:${COLORS.cyan}">Conclusion</h2>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    ${[
+      ['No-Area Setup','Without areas, OSPF picks the globally cheapest path every time. For A to C that was cost 15 by going through the backbone, even though the direct link costs 20. Fine for small networks, but every router has to store the whole topology - that does not scale.',COLORS.cyan],
+      ['With-Areas Setup','With areas, each router only knows its own area in detail. A to C used the direct link (cost 20) and stayed local. B to H still cost 40 since it had to go through the backbone anyway. Same cost, different reason.',COLORS.purple],
+      ['The Key Takeaway','Areas are a trade-off. You might pay a bit more for paths inside the same area, but the whole network gets way easier to manage. That is why real networks use them.',COLORS.yellow],
+    ].map(([t,d,c])=>`<div style="display:flex;gap:14px;padding:12px 16px;background:#111827;border-radius:8px;border:1px solid #1f2d44">
+      <div style="width:4px;min-height:40px;background:${c};border-radius:99px;flex-shrink:0"></div>
+      <div><p style="font-weight:600;margin-bottom:4px;color:${c}">${t}</p><p style="font-size:13px;color:#94a3b8">${d}</p></div>
+    </div>`).join('')}
+  </div>
+  <div style="padding:12px 16px;background:#0c1f30;border-radius:8px;border:1px solid ${COLORS.cyan}33">
+    <p class="mono" style="font-size:12px;color:#64748b">The simulation matched what the math predicted. OSPF really does run Dijkstra's, and area boundaries changed paths exactly the way we expected.</p>
+  </div>
+</div>`;}
+
+// Slide 10: Future Work
+function slideFutureWork(){return`
+<div style="display:flex;flex-direction:column;gap:14px;flex:1">
+  <div>
+    <span class="tag" style="background:#12072a;color:${COLORS.purple};border:1px solid ${COLORS.purple}33;margin-bottom:6px;display:inline-block">Looking Ahead</span>
+    <h2>Future Work</h2>
+  </div>
+  <div class="grid2" style="flex:1;gap:12px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${[
+        ['Bigger Networks','We only tested 8 routers. Real networks have hundreds. Scaling up to 50 or 100 routers would show how overhead grows and whether areas help even more at that size. [14]',COLORS.cyan,'#0c1f30'],
+        ['Link Failure Testing','Our network was static the whole time. Cutting a link mid-run and seeing how fast OSPF reroutes would be a solid next experiment. The spec says under 30 seconds - does ours hit that? [9]',COLORS.purple,'#12072a'],
+        ['Multi-Path (ECMP) Routing','When two paths have the same cost, OSPF can split traffic between both. We only looked at single-path results, so testing that split behavior would be a good extension. [12]',COLORS.yellow,'#1a1400'],
+      ].map(([t,d,c,bg])=>`<div style="padding:12px 14px;background:${bg};border-radius:8px;border:1px solid ${c}22">
+        <p style="font-weight:600;font-size:12px;color:${c};margin-bottom:4px">${t}</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.65">${d}</p>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${[
+        ['Try GNS3 or NS-3','OPNET is just one tool. Running the same tests in GNS3 or NS-3 would confirm whether our results hold up in other simulators. [5]',COLORS.green,'#04211a'],
+        ['Compare Against IS-IS','IS-IS works a lot like OSPF. Running the same scenarios with IS-IS and comparing paths and convergence times would be useful. [16]',COLORS.cyan,'#0c1f30'],
+        ['OSPF Traffic Engineering','Regular OSPF only looks at cost. OSPF-TE also factors in available bandwidth. It would be worth testing whether that changes which paths get picked. [17]',COLORS.purple,'#12072a'],
+      ].map(([t,d,c,bg])=>`<div style="padding:12px 14px;background:${bg};border-radius:8px;border:1px solid ${c}22">
+        <p style="font-weight:600;font-size:12px;color:${c};margin-bottom:4px">${t}</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.65">${d}</p>
+      </div>`).join('')}
+      <div style="padding:10px 14px;background:#111827;border-radius:8px;border:1px solid #1f2d44;margin-top:2px">
+        <p class="mono" style="font-size:11px;color:#4b6180">We documented the graph, cost formulas, and both scenarios - anyone can pick up where we left off.</p>
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+// Slide 11: References
+function slideReferences(){
+  const refs=[
+    {idx:'[1]',authors:'Cloudflare',title:'What is a packet? Network packet definition',venue:'Cloudflare, 2024',url:'https://www.cloudflare.com/learning/network-layer/what-is-a-packet/',note:'Explains what packets are and how data gets broken up to travel across a network.'},
+    {idx:'[2]',authors:'Cloudflare',title:'What Is Routing? IP Routing',venue:'Cloudflare, 2024',url:'https://www.cloudflare.com/learning/network-layer/what-is-routing/',note:'Covers how routers decide which path to send traffic down.'},
+    {idx:'[3]',authors:'GeeksforGeeks',title:'Introduction to Graph Theory',venue:'GeeksforGeeks',url:'https://www.geeksforgeeks.org/maths/mathematics-graph-theory-basics-set-1/',note:'The graph theory basics we used to model the network as vertices and edges.'},
+    {idx:'[4]',authors:'NetworkAcademy.IO',title:'What is OSPF?',venue:'NetworkAcademy.IO, 2026',url:'https://www.networkacademy.io/ccna/ospf/what-is-ospf',note:'A clear explainer on how OSPF works, including areas and the link-state algorithm.'},
+    {idx:'[5]',authors:'M. N. Shehzad',title:'Simulation of OSPF Routing Protocol Using OPNET Module',venue:'Academia.edu, 2020',url:'https://www.academia.edu/43514265/Simulation_of_OSPF_Routing_Protocol_Using_OPNET_Module_A_Routing_Protocol_Based_on_the_Link_State_Algorithm',note:'The main reference for how we set up and ran our OPNET simulation.'},
+    {idx:'[6]',authors:'CS Academy',title:'Graph Editor',venue:'csacademy.com',url:'https://csacademy.com/app/graph_editor/',note:'Used to build and visualize graph examples while working through the routing problems.'},
+    {idx:'[7]',authors:'GeeksforGeeks',title:"Dijkstra's Shortest Path Algorithm (Greedy Algo-7)",venue:'GeeksforGeeks, 2026',url:'https://www.geeksforgeeks.org/dsa/dijkstras-shortest-path-algorithm-greedy-algo-7/',note:"Reference for understanding and verifying how Dijkstra's algorithm works step by step."},
+    {idx:'[8]',authors:'T. Brito, L. L. Ling',title:'An OPNET Modeler Based Simulation Platform for Adaptive Routing Protocol',venue:'FEEC, UNICAMP',note:'The main basis for how we set up the OPNET simulation and used cost-based routing.'},
+    {idx:'[9]',authors:'A. Basu, J. G. Rieck',title:'Stability Issues in OSPF Routing',venue:'Bell Laboratories, Alcatel Inc.',note:'Explains how OSPF routers update each other - routers re-route within 30 seconds if a link fails.'},
+    {idx:'[10]',authors:'B. Vetter, F. Wang, S. F. Wu',title:'An Experimental Study of Insider Attacks for the OSPF Routing Protocol',venue:'NC State University',note:'Covers how bad data in one router can disrupt the whole OSPF network for up to 60 minutes.'},
+    {idx:'[11]',authors:'D. Sidhu, T. Fu, S. Abdallah, R. Nair',title:'Open Shortest Path First (OSPF) Routing Protocol Simulation',venue:'University of Maryland',note:'Covers Designated Router election and what happens when convergence time goes up.'},
+    {idx:'[12]',authors:'B. Fortz, J. Rexford, M. Thorup',title:'Traffic Engineering With Traditional IP Routing Protocols',venue:'IEEE Communications Magazine, Oct. 2002, pp. 118-124',url:'https://www.cs.cornell.edu/courses/cs619/2004fa/documents/ospf_opt.pdf',note:'Shows how OSPF link weights affect traffic flow across large IP networks.'},
+    {idx:'[13]',authors:'M. Ericsson, M. G. C. Resende, P. M. Pardalos',title:'A Genetic Algorithm for the Weight Setting Problem in OSPF Routing',venue:'Gainesville, USA, 2001',url:'https://www.sciencedirect.com/science/article/abs/pii/S0166531602000366',note:'Looks at how to choose the best link weights in an OSPF network automatically.'},
+    {idx:'[14]',authors:'IEEE Xplore',title:'OSPF Routing Protocol Performance Analysis',venue:'IEEE, 2012',url:'https://ieeexplore.ieee.org/abstract/document/6391849',note:'Extra performance data we referenced when comparing our two scenarios.'},
+    {idx:'[15]',authors:'IEEE Xplore',title:'OSPF Multi-Area Network Simulation',venue:'IEEE, 2013',url:'https://ieeexplore.ieee.org/document/6533929',note:'Helped us design the three-area layout used in the area scenario.'},
+    {idx:'[16]',authors:'ACM Digital Library',title:'OSPF Routing in Modern Networks',venue:'ACM, 2022',url:'https://dl.acm.org/doi/pdf/10.1145/3544585.3544600',note:'Covers the trade-offs of using areas in modern OSPF deployments.'},
+    {idx:'[17]',authors:'J. Moy (IETF)',title:'OSPF Version 2 - RFC 2178',venue:'RFC Editor, 1997',url:'https://www.rfc-editor.org/rfc/rfc2178.html',note:'The official OSPF standard. All protocol behavior in this simulation is based on this document.'},
+    {idx:'[18]',authors:'Claude (Anthropic)',title:'Interactive OSPF Simulation Web App',venue:'claude.ai, 2025',url:'https://claude.ai',note:'This interactive presentation was built using Claude Sonnet 4 (model: claude-sonnet-4-20250514) via claude.ai. Claude generated all slide content, the interactive Dijkstra step-through, the animated SVG topology diagrams, and the JavaScript slide engine. Accessed May 2025.'},
+  ];
+  function refCard(r){return`<div style="display:flex;gap:10px;padding:8px 10px;background:#111827;border-radius:7px;border:1px solid #1f2d44;border-left:3px solid ${COLORS.cyan}">
+    <span class="mono" style="font-size:11px;color:${COLORS.cyan};flex-shrink:0;margin-top:1px">${r.idx}</span>
+    <div style="flex:1;min-width:0">
+      <p style="font-size:12px;font-weight:600;color:#e2e8f0;line-height:1.4">${r.title}</p>
+      <p style="font-size:11px;color:#64748b;margin-top:2px">${r.authors} - ${r.venue}</p>
+      <p style="font-size:11px;color:#4b6180;margin-top:2px;font-style:italic">${r.note}</p>
+      <a href="${r.url}" class="ref-link" target="_blank">${r.url}</a>
+    </div>
+  </div>`;}
+  return`
+<div style="display:flex;flex-direction:column;gap:10px;flex:1;overflow:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <h2 style="color:${COLORS.cyan}">References</h2>
+    <div style="display:flex;gap:8px">
+      <span class="pill" style="background:#0c1f30;color:${COLORS.cyan}">[1-7] Background</span>
+      <span class="pill" style="background:#12072a;color:${COLORS.purple}">[8-18] Academic</span>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px">${refs.map(refCard).join('')}</div>
+</div>`;}
+
+// Slide 12: Group Contributions
+function slideContributions(){
+  const members=[
+    {name:'Ethan Bouryng',initials:'EB',topics:['OSPF','LSA'],color:COLORS.cyan,colorBg:'#0c1f30',
+     desc:'Covered how OSPF works as a protocol - what it is, how routers share info using LSAs, and why it was designed that way.'},
+    {name:'Nitheesh Reddy',initials:'NR',topics:['Network Cost Graph','Internet Routing'],color:COLORS.purple,colorBg:'#12072a',
+     desc:'Built the weighted cost graph used in both scenarios and explained how OSPF fits into internet routing as an Interior Gateway Protocol.'},
+    {name:'Rishwanth Vidhya',initials:'RV',topics:['Graph Theory',"Dijkstra's Algorithm"],color:COLORS.yellow,colorBg:'#1a1400',
+     desc:"Handled the graph math - modeled the network as vertices and edges and ran Dijkstra's to verify which paths OSPF should pick."},
+    {name:'Sathwik Harapanahalli',initials:'SH',topics:['Simulation','Analysis'],color:COLORS.green,colorBg:'#04211a',
+     desc:'Set up and ran both scenarios in OPNET Modeler, collected throughput results, and put together the no-area vs area comparison.'},
+  ];
+  return`
+<div style="display:flex;flex-direction:column;gap:14px;flex:1">
+  <div style="display:flex;align-items:baseline;gap:12px">
+    <h2>Group Contributions</h2>
+    <span class="mono" style="font-size:11px;color:#4b6180">Simulation of OSPF Routing Protocol</span>
+  </div>
+  <div class="grid2" style="flex:1">
+    ${members.map(m=>`
+    <div class="member-card">
+      <div style="position:absolute;top:0;right:0;width:80px;height:80px;border-radius:0 12px 0 80px;background:${m.color};opacity:.04"></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="avatar" style="background:${m.colorBg};color:${m.color};border:1.5px solid ${m.color}33">${m.initials}</div>
+        <div>
+          <p style="font-size:14px;font-weight:700;color:#e2e8f0">${m.name}</p>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
+            ${m.topics.map(t=>`<span class="topic-tag" style="background:${m.colorBg};color:${m.color};border-color:${m.color}33">${t}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#64748b;line-height:1.65;border-top:1px solid #1f2d44;padding-top:10px">${m.desc}</p>
+    </div>`).join('')}
+  </div>
+  <div style="padding:10px 16px;background:#111827;border-radius:8px;border:1px solid #1f2d44;display:flex;align-items:center;gap:10px">
+    <div style="width:6px;height:6px;border-radius:50%;background:${COLORS.cyan}"></div>
+    <p class="mono" style="font-size:11px;color:#4b6180">Virginia Tech - CS / Network Systems - Spring 2025</p>
+  </div>
+</div>`;}
+
+// Slide 6: Reading OSPF Areas
+function slideReadingAreas(){
+  const areaSVG=`<svg viewBox="0 0 660 310" style="width:100%;max-height:270px"><defs><style>.al{stroke-dasharray:8 4;animation:dashAnim 1s linear infinite}@keyframes dashAnim{to{stroke-dashoffset:-24}}</style></defs>
+    <!-- Area boxes -->
+    <rect x="30" y="38" width="205" height="240" rx="14" fill="#22d3ee" fill-opacity=".06" stroke="#22d3ee" stroke-opacity=".4" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="44" y="57" fill="#22d3ee" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="700">Area 1 (0.0.0.1) - branch office</text>
+    <rect x="242" y="38" width="148" height="240" rx="14" fill="#fbbf24" fill-opacity=".06" stroke="#fbbf24" stroke-opacity=".4" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="256" y="57" fill="#fbbf24" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="700">Area 0 - backbone</text>
+    <rect x="398" y="38" width="240" height="240" rx="14" fill="#a78bfa" fill-opacity=".06" stroke="#a78bfa" stroke-opacity=".4" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="412" y="57" fill="#a78bfa" font-size="11" font-family="'JetBrains Mono',monospace" font-weight="700">Area 2 (0.0.0.2) - data center</text>
+    <!-- Edges -->
+    <line x1="80" y1="100" x2="80" y2="240" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="80" y1="100" x2="200" y2="240" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="80" y1="240" x2="200" y2="240" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="80" y1="100" x2="300" y2="100" stroke="#fbbf24" stroke-width="2" class="al"/>
+    <line x1="300" y1="100" x2="300" y2="240" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="300" y1="100" x2="520" y2="100" stroke="#fbbf24" stroke-width="2" class="al"/>
+    <line x1="520" y1="100" x2="460" y2="240" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="520" y1="100" x2="600" y2="240" stroke="#1f2d44" stroke-width="1.5"/>
+    <line x1="460" y1="240" x2="600" y2="240" stroke="#1f2d44" stroke-width="1.5"/>
+    <!-- Edge costs -->
+    <text x="32" y="175" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">20</text>
+    <text x="148" y="155" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">20</text>
+    <text x="134" y="252" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">20</text>
+    <text x="186" y="165" fill="#fbbf24" font-size="9" font-family="'JetBrains Mono',monospace" font-weight="700">5</text>
+    <text x="305" y="175" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">5</text>
+    <text x="408" y="165" fill="#fbbf24" font-size="9" font-family="'JetBrains Mono',monospace" font-weight="700">5</text>
+    <text x="482" y="175" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">10</text>
+    <text x="556" y="175" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">10</text>
+    <text x="524" y="252" fill="#64748b" font-size="9" font-family="'JetBrains Mono',monospace">10</text>
+    <!-- Nodes -->
+    <circle cx="80" cy="100" r="22" fill="#0c1f30" stroke="#22d3ee" stroke-width="2"/>
+    <text x="80" y="101" text-anchor="middle" dominant-baseline="central" fill="#22d3ee" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">A</text>
+    <circle cx="80" cy="240" r="22" fill="#0c1f30" stroke="#22d3ee" stroke-width="2"/>
+    <text x="80" y="241" text-anchor="middle" dominant-baseline="central" fill="#22d3ee" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">B</text>
+    <circle cx="200" cy="240" r="22" fill="#0c1f30" stroke="#22d3ee" stroke-width="2"/>
+    <text x="200" y="241" text-anchor="middle" dominant-baseline="central" fill="#22d3ee" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">C</text>
+    <!-- ABR A label -->
+    <rect x="88" y="74" width="38" height="14" rx="3" fill="#fbbf24" fill-opacity=".2"/>
+    <text x="107" y="84" text-anchor="middle" fill="#fbbf24" font-size="9" font-family="'JetBrains Mono',monospace" font-weight="700">ABR</text>
+    <circle cx="300" cy="100" r="22" fill="#1a1400" stroke="#fbbf24" stroke-width="2"/>
+    <text x="300" y="101" text-anchor="middle" dominant-baseline="central" fill="#fbbf24" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">D</text>
+    <circle cx="300" cy="240" r="22" fill="#1a1400" stroke="#fbbf24" stroke-width="2"/>
+    <text x="300" y="241" text-anchor="middle" dominant-baseline="central" fill="#fbbf24" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">E</text>
+    <circle cx="520" cy="100" r="22" fill="#12072a" stroke="#a78bfa" stroke-width="2"/>
+    <text x="520" y="101" text-anchor="middle" dominant-baseline="central" fill="#a78bfa" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">F</text>
+    <!-- ABR F label -->
+    <rect x="528" y="74" width="38" height="14" rx="3" fill="#fbbf24" fill-opacity=".2"/>
+    <text x="547" y="84" text-anchor="middle" fill="#fbbf24" font-size="9" font-family="'JetBrains Mono',monospace" font-weight="700">ABR</text>
+    <circle cx="460" cy="240" r="22" fill="#12072a" stroke="#a78bfa" stroke-width="2"/>
+    <text x="460" y="241" text-anchor="middle" dominant-baseline="central" fill="#a78bfa" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">G</text>
+    <circle cx="600" cy="240" r="22" fill="#12072a" stroke="#a78bfa" stroke-width="2"/>
+    <text x="600" y="241" text-anchor="middle" dominant-baseline="central" fill="#a78bfa" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">H</text>
+  </svg>`;
+  return`
+<div style="display:flex;flex-direction:column;gap:12px;flex:1">
+  <div>
+    <span class="tag" style="background:#1a1400;color:${COLORS.yellow};border:1px solid ${COLORS.yellow}33;margin-bottom:6px;display:inline-block">How to Read the Graph</span>
+    <h2>Understanding OSPF Areas</h2>
+  </div>
+  <div class="grid2" style="flex:1;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="card" style="padding:12px">
+        <p style="font-size:12px;font-weight:700;color:${COLORS.yellow};margin-bottom:8px">What an Area Means</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.7;margin-bottom:8px">An area is just a group of routers that share full routing details only with each other. Think of it like departments in a company: each department knows all the details of its own floor, but only a summary of what the other floors look like.</p>
+        ${[
+          [`Nodes (circles)`,`Each circle is a router. The color tells you which area it belongs to: cyan = Area 1, yellow = Area 0 (backbone), purple = Area 2.`,'#22d3ee'],
+          [`Edges (lines)`,`Each line is a network link. The number on the line is the cost - lower is better. Animated yellow lines show the backbone connections between areas.`,'#fbbf24'],
+          [`ABR (Area Border Router)`,`Routers A and F sit on the border between two areas. They are the only ones that can pass traffic between areas. All cross-area traffic must go through them into the backbone first.`,'#a78bfa'],
+        ].map(([t,d,c])=>`<div style="padding:8px 10px;background:#0a0f1e;border-radius:6px;border-left:2px solid ${c}55;margin-bottom:5px">
+          <p style="font-size:11px;font-weight:700;color:${c};margin-bottom:3px">${t}</p>
+          <p style="font-size:11px;color:#64748b;line-height:1.6">${d}</p>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="card" style="padding:10px">
+        <p style="font-size:11px;font-weight:700;color:${COLORS.cyan};margin-bottom:6px">Our Network with Areas Labeled</p>
+        ${areaSVG}
+      </div>
+      <div style="padding:10px 14px;background:#1a1400;border-radius:8px;border:1px solid ${COLORS.yellow}33">
+        <p style="font-size:12px;font-weight:600;color:${COLORS.yellow};margin-bottom:4px">Reading example: B to H</p>
+        <p style="font-size:12px;color:#64748b;line-height:1.65">B is in Area 1 (branch). H is in Area 2 (data center). B cannot talk directly to H - it has to go through ABR at A, across the backbone via D, then through ABR at F to reach H. The area boundaries act like checkpoints that force traffic through the backbone.</p>
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+const SLIDE_RENDERERS=[slide0,slideMotivation,slideGraphTheory,slideDijkstra,slideOSPF,slideTopology,slideReadingAreas,slideSimSetup,slideNoArea,slideWithAreas,slideConclusion,slideFutureWork,slideReferences,slideContributions];
+
+function render(){
+  document.getElementById('slide-content').innerHTML=SLIDE_RENDERERS[currentSlide]();
+  document.getElementById('prev-btn').disabled=currentSlide===0;
+  document.getElementById('next-btn').disabled=currentSlide===totalSlides-1;
+  document.getElementById('slide-label').textContent=slideTitles[currentSlide]+` (${currentSlide+1}/${totalSlides})`;
+  const dots=document.getElementById('dots');
+  dots.innerHTML=[...Array(totalSlides)].map((_,i)=>`<div class="dot ${i===currentSlide?'active':''}" onclick="goSlide(${i})" title="${slideTitles[i]}"></div>`).join('');
+}
+function prevSlide(){if(currentSlide>0){currentSlide--;render();}}
+function nextSlide(){if(currentSlide<totalSlides-1){currentSlide++;render();}}
+function goSlide(i){currentSlide=i;render();}
+function toggleAreas(v){showAreas=v;render();}
+function setScenario(id){activeScenario=id;render();}
+function stepDijkstra(dir){dijkStep=Math.max(0,Math.min(DIJK_STEPS.length-1,dijkStep+dir));render();}
+function resetDijkstra(){dijkStep=0;render();}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')nextSlide();if(e.key==='ArrowLeft')prevSlide();});
+render();
+</script>
